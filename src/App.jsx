@@ -7,10 +7,11 @@ function App() {
   const [data, setData] = useState([]);
   const [state, setState] = useState('Idle');
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
-  const [tokens, setTokens] = useState(0)
 
   async function getTokenBalance() {
+    //0. reset states
     //if the previous query was the same as the current query, just use it
+    setUserAddress(prev => prev.trim());
     if (currentQuery == userAddress) {
       console.log("Same as Previous Query")
       //early return, do nothing
@@ -18,13 +19,15 @@ function App() {
     } else {
       //reset the states from the previous query
       setData([]);
+      //reset token data objects
+      setTokenDataObjects([]);
       setState('Fetching User Token Balances...')
       //set currentQuery to userAddress
       setcurrentQuery(userAddress);
-      setTokens(0);
     }
     console.log("User Address: ", userAddress)
 
+    //1. Get user's token balances
     //catch when invalid address error
     let results;
     try {
@@ -33,8 +36,9 @@ function App() {
       console.log(results);
 
     } catch (error) {
+      console.log(error)
       //set error reason to show to user
-      setState(error.reason)
+      setState(error.reason || "Error Fetching Balances: Try again with a valid address.")
       return;
     }
     setData(results);
@@ -43,8 +47,10 @@ function App() {
       setState('User has no ECR-20 Tokens')
       return;
     }
+
+    //2. Fetch token metadata
     setState('Fetching Token MetaData...')
-    setTokens(results.tokenBalances.length);
+    setTokenDataObjects(Array(results.tokenBalances.length).fill(null));
     const tokenDataPromises = [];
 
     for (let i = 0; i < results.tokenBalances.length; i++) {
@@ -55,16 +61,31 @@ function App() {
       tokenDataPromises.push(tokenData);
     }
 
-    const resolved_data = await Promise.all(tokenDataPromises);
-    setTokenDataObjects(resolved_data);
-    console.log(resolved_data)
-    setState('Idle')
+    //add data as promises resolve
+    //list((listItem, index) => {some function to execute})
+    //promise.then(returnVal => {function})
+    //SetterFunction(current value => {return value to update to})
+    //only update the index that is currently resolved in the current array
+    await tokenDataPromises.forEach((promise, index) => {
+      promise.then(tokenData => {
+        setTokenDataObjects(prev => {
+          //create copy (react wont detect change (new array item) since the array is the same array (same place in memory))
+          const updated_data = [...prev];
+          updated_data[index] = tokenData;
+          console.log(tokenData);
+          return updated_data;
+        })
+      })
+    })
+    setState('Idle');
   }
 
-  //when something happens to the component onChange is field of, event object is triggered which contains info about what happened
+  //When something happens to the component onChange is field of, event object is triggered which contains info about what happened
   //event.target = the DOM element that triggered the event
   return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center">
+      <div className="relative flex flex-col items-center min-h-screen text-center w-full">
+        {/*anchor 50% from left; shift back by 50% of element width*/}
+        <div className='sticky top-10 bg-white z-10 w-1/2'>
           <h1 className='text-xl font-sans'>
             ERC-20 Token Indexer
           </h1>
@@ -72,22 +93,42 @@ function App() {
             Plug in an address and this website will return all of its ERC-20
             token balances!
           </p>
-          <div className='flex gap-2'>
+          <div className='flex gap-2 w-full items-center justify-center'>
             <input 
               type="text" 
               onChange={(e) => setUserAddress(e.target.value)}
               value={userAddress}
               placeholder="Input Address Here..." 
-              className="input input-md border border-gray-300 rounded px-3 py-2 mt-4 w-full" 
+              className="input input-md border border-gray-300 rounded px-3 py-2 mt-4 w-3/4" 
             />
             <button onClick={getTokenBalance} className='bg-black text-white rounded px-3 py-2 mt-4'>Submit</button>
           </div>
-          <div className='flex mt-4'>
+        </div>
+          {/*Results (px for horizontal border)*/}
+          <div className='flex w-full justify-center items-center mt-4 px-10 py-5 pt-20'>
             {/*conditional rendering for search results */}
             {/* js compares objects by reference (memory location) so results === [] will always return false */}
-            {state != 'Idle' && <p className='font-sans'>{state}</p>}
             {/*conditional rendering for displaying search results */}
-            {state == 'Idle'}
+            {state != 'Idle' && tokenDataObjects.length == 0 ? 
+              <p className='font-sans'>{state}</p>
+              :
+              <div className='grid grid-cols-3 gap-4 auto-rows-[minmax(200px,auto)] w-full'>
+                {tokenDataObjects.map( (token, i) =>
+                  token ?
+                  <div key={i} className='card w-full bg-black text-white shadow-sm'>
+                      <div className="card-body">
+                        <h2 className="card-title">{token.name}</h2>
+                      </div>
+                  </div>
+                  :
+                  <div key={i} className='card w-full bg-black text-white shadow-sm'>
+                      <div className="card-body">
+                        <h2 className="card-title">Fetching Token Data...</h2>
+                      </div>
+                  </div>
+                )}
+              </div>
+            }
           </div>
       </div>
   );
