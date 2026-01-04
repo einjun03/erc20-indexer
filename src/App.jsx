@@ -19,22 +19,17 @@ function App() {
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
 
   async function getTokenBalance() {
-    const config = {
-      apiKey: '<-- COPY-PASTE YOUR ALCHEMY API KEY HERE -->',
-      network: Network.ETH_MAINNET,
-    };
-
-    const alchemy = new Alchemy(config);
-    const data = await alchemy.core.getTokenBalances(userAddress);
+    const response = await fetch(`/api/balances?address=${userAddress}`);
+    const data = await response.json();
+    console.log(data);
 
     setResults(data);
 
     const tokenDataPromises = [];
 
     for (let i = 0; i < data.tokenBalances.length; i++) {
-      const tokenData = alchemy.core.getTokenMetadata(
-        data.tokenBalances[i].contractAddress
-      );
+      const response = await fetch(`/api/metadata?contract_address=${data.tokenBalances[i].contractAddress}`)
+      const tokenData = await response.json();
       tokenDataPromises.push(tokenData);
     }
 
