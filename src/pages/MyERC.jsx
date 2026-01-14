@@ -1,45 +1,31 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
 import { TokenCard, TokenCardSkeleton } from '../components/TokenCard';
 
-function WalletBalances() {
-  const [currentQuery, setcurrentQuery] = useState('');
-  const [userAddress, setUserAddress] = useState('');
+function MyERC20() {
+  const { address, isConnected } = useAccount()
   const [data, setData] = useState([]);
-  const [state, setState] = useState('Idle');
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
+  const [state, setState] = useState('Idle');
 
   async function getTokenBalance() {
-    //0. reset states
-    //if the previous query was the same as the current query, just use it
-    setUserAddress(prev => prev.trim());
-    if (currentQuery == userAddress) {
-      console.log("Same as Previous Query")
-      //early return, do nothing
-      return;
-    } else {
-      //reset the states from the previous query
-      setData([]);
-      //reset token data objects
-      setTokenDataObjects([]);
-      setState('Fetching User Token Balances...')
-      //set currentQuery to userAddress
-      setcurrentQuery(userAddress);
-    }
-    console.log("User Address: ", userAddress)
 
     //1. Get user's token balances
     //catch when invalid address error
+
+    setState('Fetching User Token Balances...')
+
     let results;
     try {
-      const response = await fetch(`/api/balances?address=${userAddress}`);
+      const response = await fetch(`/api/balances?address=${address}`);
       results = await response.json();
       console.log(results);
 
     } catch (error) {
       console.log(error)
       //set error reason to show to user
-      setState(error.reason || "Error Fetching Balances: Try again with a valid address.")
+      setState(error.reason || "Error Fetching Balances")
       return;
     }
     setData(results);
@@ -67,7 +53,7 @@ function WalletBalances() {
     //promise.then(returnVal => {function})
     //SetterFunction(current value => {return value to update to})
     //only update the index that is currently resolved in the current array
-    tokenDataPromises.forEach((promise, index) => {
+    await tokenDataPromises.forEach((promise, index) => {
       promise.then(tokenData => {
         setTokenDataObjects(prev => {
           //create copy (react wont detect change (new array item) since the array is the same array (same place in memory))
@@ -78,34 +64,31 @@ function WalletBalances() {
         })
       })
     })
-
-    await Promise.all(tokenDataPromises)
     setState('Idle');
   }
+
+  //runs once when wallet is connected or address is changed
+  useEffect(() => {
+    if(isConnected && address) {
+        getTokenBalance();
+    }
+  }, [isConnected, address])
 
   //When something happens to the component onChange is field of, event object is triggered which contains info about what happened
   //event.target = the DOM element that triggered the event
   return (
       <div className="relative flex flex-col min-h-screen text-center w-full bg-base-100">
         {/*anchor 50% from left; shift back by 50% of element width*/}
-        <div className='sticky top-10 z-10 pt-20  rounded-2xl flex justify-center items-center'>
-          <div className='relative'>
-            <input
-              type="text"
-              onChange={(e) => setUserAddress(e.target.value)}
-              value={userAddress}
-              placeholder="Enter wallet address to see wallet ERC-20 Balances"
-              className="input input-lg bg-base-300/80 pl-5 w-180 text-base-content placeholder:text-base-content/40 text-lg font-mono border-2 border-primary/30 focus:border-primary focus:outline-none transition-all"
-            />
-            <button onClick={getTokenBalance} className='btn btn-primary w-30 btn-lg absolute right-0.25 text-lg font-bold shadow-lg hover:shadow-primary/50 transition-all'>Search</button>
-          </div>
+        <div className='sticky flex-col top-10 z-10 pt-20 rounded-2xl flex justify-center items-center'>
+            <h2 className="text-xl font-extrabold text-base-content pb-2">ERC-20 Balances</h2>
+            {isConnected && <p className="text-sm text-primary font-semibold">Wallet Address: {address}</p>}
         </div>
           {/*Results (px for horizontal border)*/}
           <div className='flex w-full justify-center items-center mt-4 px-10 py-5 pt-10'>
             {/*conditional rendering for search results */}
             {/* js compares objects by reference (memory location) so results === [] will always return false */}
             {/*conditional rendering for displaying search results */}
-            {state === 'Idle' && !currentQuery ? <p className='text-2xl font-semibold text-primary'>Search to Display Balances</p> : 
+            {state === 'Idle' && !isConnected ? <p className='text-2xl font-semibold text-primary'>Connect Wallet to Display Balances</p> : 
               state != 'Idle' && tokenDataObjects.length == 0 ?
                 <p className='text-2xl font-semibold text-primary animate-pulse'>{state}</p>
                 :
@@ -123,4 +106,4 @@ function WalletBalances() {
   );
 }
 
-export default WalletBalances;
+export default MyERC20;

@@ -1,17 +1,21 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import {WalletBalances, Home, Login, Register} from './pages/index.jsx'
-
+import {WalletBalances, Home, MyERC } from './pages/index.jsx'
+import { Web3Provider } from './Web3Provider.jsx'
 import './index.css'
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Layout } from './Layout.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/WalletBalances" element={<WalletBalances />} />
-      <Route path="/Login" element={<Login />} />
-      <Route path="/Register" element={<Register />} />
-    </Routes>
-  </BrowserRouter>
+  <Web3Provider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="/wallet-balances" element={<WalletBalances />} />
+            <Route path="/my-erc" element={< MyERC />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+  </Web3Provider>
 )
